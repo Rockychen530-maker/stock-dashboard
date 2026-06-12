@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>📊 看盤系統 v3 | 台中小陳</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -453,7 +455,7 @@
     }
     
     /* 比較工具 */
-    .compare-section {
+    .compare-section, .screener-section {
       background: var(--bg-card);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 16px;
@@ -461,14 +463,16 @@
       margin-bottom: 16px;
     }
     
-    .compare-input {
+    .compare-input, .screener-filters {
       display: flex;
       gap: 10px;
       margin-bottom: 14px;
+      flex-wrap: wrap;
     }
     
-    .compare-input input {
+    .compare-input input, .screener-filters select {
       flex: 1;
+      min-width: 120px;
       padding: 12px 14px;
       border-radius: 10px;
       border: 1px solid rgba(255,255,255,0.2);
@@ -477,12 +481,72 @@
       font-size: 0.9rem;
     }
     
-    .compare-input button {
+    .compare-input button, .screener-filters button {
       padding: 12px 20px;
       border-radius: 10px;
       border: none;
       background: var(--accent);
       color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .compare-input button:hover, .screener-filters button:hover {
+      background: #ff6b81;
+      transform: scale(1.02);
+    }
+    
+    .screener-result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    
+    .screener-stock-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .screener-stock-card:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+    
+    .screener-stock-card .name {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    
+    .screener-stock-card .price {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+    
+    .screener-stock-card .change {
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    
+    .screener-stock-card .change.up { color: var(--up-color); }
+    .screener-stock-card .change.down { color: var(--down-color); }
+    
+    .screener-stock-card .tech-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .screener-stock-card .tech-tag {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.1);
+    };
       font-weight: bold;
       cursor: pointer;
     }
@@ -741,6 +805,39 @@
         <button onclick="doCompare()">比較</button>
       </div>
       <div id="compare-result"><div class="loading">輸入股票代碼並點擊比較</div></div>
+    </div>
+    
+    <!-- 股票篩選器 -->
+    <h3 class="section-title">🔍 股票篩選器</h3>
+    <div class="screener-section">
+      <div class="screener-filters">
+        <select id="screener-sector">
+          <option value="">所有產業</option>
+          <option value="半導體">半導體</option>
+          <option value="PCB">PCB</option>
+          <option value="航運">航運</option>
+          <option value="金融">金融</option>
+          <option value="光電">光電</option>
+          <option value="AI/伺服器">AI/伺服器</option>
+          <option value="網通">網通</option>
+          <option value="塑膠">塑膠</option>
+          <option value="鋼鐵">鋼鐵</option>
+          <option value="電腦週邊">電腦週邊</option>
+        </select>
+        <select id="screener-rsi">
+          <option value="">RSI範圍</option>
+          <option value="oversold">RSI < 30 (超賣)</option>
+          <option value="neutral">RSI 30-70 (中性)</option>
+          <option value="overbought">RSI > 70 (超買)</option>
+        </select>
+        <select id="screener-trend">
+          <option value="">趨勢方向</option>
+          <option value="up">上升趨勢 ↑</option>
+          <option value="down">下降趨勢 ↓</option>
+        </select>
+        <button onclick="doScreener()">篩選</button>
+      </div>
+      <div id="screener-result"><div class="loading">選擇條件並點擊篩選</div></div>
     </div>
     
     <!-- 警示設定 -->
@@ -1007,7 +1104,7 @@
       return num.toString();
     }
     
-    // 更新圖表
+    // 更新圖表（K線圖/蠟燭圖）
     function updateChart(symbol, quotes, isUp) {
       const ctx = document.getElementById('chart-' + symbol)?.getContext('2d');
       if (!ctx) return;
@@ -1016,29 +1113,66 @@
         charts[symbol].destroy();
       }
       
-      const labels = quotes.slice(-30).map(q => q.time);
-      const prices = quotes.slice(-30).map(q => q.close);
+      const ohlcData = quotes.slice(-60).map(q => ({
+        x: q.time,
+        o: q.open,
+        h: q.high,
+        l: q.low,
+        c: q.close
+      }));
+      
+      const upColor = '#00d26a';
+      const downColor = '#ff4757';
       
       charts[symbol] = new Chart(ctx, {
-        type: 'line',
+        type: 'candlestick',
         data: {
-          labels,
           datasets: [{
-            data: prices,
-            borderColor: isUp ? '#00d26a' : '#ff4757',
-            backgroundColor: isUp ? 'rgba(0, 210, 106, 0.1)' : 'rgba(255, 71, 87, 0.1)',
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0
+            label: symbol,
+            data: ohlcData,
+            color: {
+              up: upColor,
+              down: downColor,
+              unchanged: '#ffa502'
+            },
+            borderColor: {
+              up: upColor,
+              down: downColor,
+              unchanged: '#ffa502'
+            }
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const d = context.raw;
+                  return [
+                    '開盤: $' + d.o,
+                    '最高: $' + d.h,
+                    '最低: $' + d.l,
+                    '收盤: $' + d.c
+                  ];
+                }
+              }
+            }
+          },
           scales: {
-            x: { display: false },
-            y: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a0a0b0', font: { size: 10 } } }
+            x: {
+              type: 'time',
+              display: true,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#a0a0b0', font: { size: 9 }, maxTicksLimit: 8 }
+            },
+            y: {
+              display: true,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#a0a0b0', font: { size: 10 } }
+            }
           }
         }
       });
@@ -1074,6 +1208,81 @@
         document.getElementById('compare-result').innerHTML = html;
       } catch (e) {
         document.getElementById('compare-result').innerHTML = '<div class="error">比較失敗</div>';
+      }
+    }
+    
+    // 股票篩選器
+    async function doScreener() {
+      const sector = document.getElementById('screener-sector').value;
+      const rsiFilter = document.getElementById('screener-rsi').value;
+      const trend = document.getElementById('screener-trend').value;
+      
+      document.getElementById('screener-result').innerHTML = '<div class="loading">載入中...</div>';
+      
+      try {
+        // 取得熱力圖數據
+        const res = await fetch(API_BASE + '/api/treemap');
+        let stocks = await res.json();
+        
+        // 依產業篩選
+        if (sector) {
+          stocks = stocks.filter(s => s.sector === sector);
+        }
+        
+        // 取得詳細報價以取得 RSI
+        const stockSymbols = stocks.map(s => s.symbol + '.TW');
+        const detailedStocks = [];
+        
+        for (const sym of stockSymbols.slice(0, 20)) {
+          try {
+            const qRes = await fetch(API_BASE + '/api/quote/' + sym);
+            const q = await qRes.json();
+            if (q && q.price) {
+              detailedStocks.push({
+                symbol: q.symbol.replace('.TW', ''),
+                name: stocks.find(s => s.symbol + '.TW' === sym)?.name || q.symbol,
+                sector: stocks.find(s => s.symbol + '.TW' === sym)?.sector || '其他',
+                price: q.price,
+                change: q.change,
+                changePercent: q.changePercent,
+                rsi: q.rsi,
+                kd: q.kd
+              });
+            }
+          } catch (e) {}
+        }
+        
+        // RSI 篩選
+        if (rsiFilter === 'oversold') {
+          detailedStocks.filter(s => s.rsi && s.rsi < 30);
+        } else if (rsiFilter === 'overbought') {
+          detailedStocks.filter(s => s.rsi && s.rsi > 70);
+        }
+        
+        // 顯示結果
+        let html = '<div class="screener-result-grid">';
+        detailedStocks.forEach(s => {
+          const change = fmtChange(s.change, s.changePercent);
+          const rsiColor = s.rsi < 30 ? 'down' : s.rsi > 70 ? 'up' : 'neutral';
+          html += '<div class="screener-stock-card" onclick="showStockDetail(\'' + s.symbol + '.TW\')">' +
+            '<div class="name">' + s.symbol + '</div>' +
+            '<div class="price">$' + fmt(s.price) + '</div>' +
+            '<div class="change ' + change.cls + '">' + change.text + '</div>' +
+            '<div class="tech-tags">' +
+              '<span class="tech-tag">' + s.sector + '</span>' +
+              '<span class="tech-tag ' + rsiColor + '">RSI: ' + (s.rsi || '—') + '</span>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+        
+        if (detailedStocks.length === 0) {
+          html = '<div class="loading">找不到符合條件的股票</div>';
+        }
+        
+        document.getElementById('screener-result').innerHTML = html;
+      } catch (e) {
+        document.getElementById('screener-result').innerHTML = '<div class="error">篩選失敗</div>';
       }
     }
     
