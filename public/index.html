@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>📊 看盤系統 v3 | 台中小陳</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #16213e;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --up-color: #00d26a;
+      --down-color: #ff4757;
+      --warn-color: #ffa502;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--bg-card) 0%, var(--accent2) 100%);
+      padding: 16px 20px;
+      border-bottom: 2px solid var(--accent);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      background: linear-gradient(135deg, var(--accent), #ff6b81);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .user-badge {
+      background: rgba(233, 69, 96, 0.2);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .user-badge::before {
+      content: '👤';
+    }
+    
+    .header-info {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    
+    /* 警示卡片 */
+    .alert-card {
+      background: linear-gradient(135deg, var(--bg-card), var(--accent2));
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .alert-card h2 {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .advice-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-right: 12px;
+    }
+    
+    .advice-badge.bullish { background: var(--up-color); color: #000; }
+    .advice-badge.bearish { background: var(--down-color); color: #fff; }
+    .advice-badge.neutral { background: var(--text-secondary); color: #000; }
+    
+    .risk-badge {
+      padding: 6px 14px;
+      border-radius: 15px;
+      font-size: 0.85rem;
+    }
+    
+    .risk-badge.low { background: var(--up-color); color: #000; }
+    .risk-badge.medium { background: var(--warn-color); color: #000; }
+    .risk-badge.high { background: var(--down-color); color: #fff; }
+    
+    /* 技術分析面板 */
+    .tech-panel {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .tech-panel h3 {
+      font-size: 0.95rem;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    
+    .tech-item {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    
+    .tech-item .label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    
+    .tech-item .value {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+    
+    .tech-item .value.up { color: var(--up-color); }
+    .tech-item .value.down { color: var(--down-color); }
+    .tech-item .value.neutral { color: var(--warn-color); }
+    
+    /* 信號面板 */
+    .signal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .signal-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+    
+    .signal-item .indicator {
+      font-weight: bold;
+      color: var(--text-secondary);
+    }
+    
+    .signal-item .action {
+      font-weight: bold;
+    }
+    
+    .signal-item .action.buy { color: var(--up-color); }
+    .signal-item .action.sell { color: var(--down-color); }
+    .signal-item .action.hold { color: var(--warn-color); }
+    
+    /* 支撐/壓力位 */
+    .sr-levels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .sr-box {
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    
+    .sr-box.resistance {
+      background: rgba(255, 71, 87, 0.15);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+    
+    .sr-box.support {
+      background: rgba(0, 210, 106, 0.15);
+      border: 1px solid rgba(0, 210, 106, 0.3);
+    }
+    
+    .sr-box .label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    
+    .sr-box .value {
+      font-size: 1rem;
+      font-weight: bold;
+    }
+    
+    .sr-box .value.up { color: var(--up-color); }
+    .sr-box .value.down { color: var(--down-color); }
+    
+    /* 熱力圖 */
+    .heatmap-container {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: 0.95rem;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+      font-size: 0.75rem;
+      flex-wrap: wrap;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .legend-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+    
+    .legend-up { background: var(--up-color); }
+    .legend-down { background: var(--down-color); }
+    .legend-flat { background: var(--text-secondary); }
+    
+    .treemap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+      gap: 5px;
+    }
+    
+    .treemap-item {
+      border-radius: 8px;
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: 65px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    
+    .treemap-item:hover {
+      transform: scale(1.04);
+      z-index: 5;
+    }
+    
+    .treemap-item .symbol {
+      font-size: 0.7rem;
+      font-weight: bold;
+      color: #fff;
+    }
+    
+    .treemap-item .name {
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.8);
+      margin-top: 2px;
+    }
+    
+    .treemap-item .price {
+      font-size: 0.8rem;
+      color: #fff;
+      margin-top: 4px;
+    }
+    
+    .treemap-item .change {
+      font-size: 0.65rem;
+      color: #fff;
+    }
+    
+    .treemap-item.up-3 { background: linear-gradient(135deg, #00d26a, #00b855); }
+    .treemap-item.up-1 { background: linear-gradient(135deg, #00d26a, #00a050); }
+    .treemap-item.up-0 { background: linear-gradient(135deg, #00d26a, #008540); }
+    .treemap-item.flat { background: linear-gradient(135deg, #555, #444); }
+    .treemap-item.down-0 { background: linear-gradient(135deg, #ff4757, #cc3a47); }
+    .treemap-item.down-1 { background: linear-gradient(135deg, #ff4757, #b32d39); }
+    .treemap-item.down-3 { background: linear-gradient(135deg, #ff4757, #99242e); }
+    
+    .sector-group {
+      margin-bottom: 14px;
+    }
+    
+    .sector-title {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-bottom: 8px;
+      padding-left: 4px;
+      border-left: 3px solid var(--accent);
+    }
+    
+    /* 產業概覽 */
+    .sector-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .sector-item {
+      background: var(--bg-card);
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .sector-item .sector-name {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    
+    .sector-item .sector-change {
+      font-size: 0.95rem;
+      font-weight: bold;
+    }
+    
+    .sector-item .sector-change.up { color: var(--up-color); }
+    .sector-item .sector-change.down { color: var(--down-color); }
+    
+    /* 個股走勢圖 */
+    .stock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    
+    .stock-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    
+    .stock-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .stock-card .symbol-tag {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.1);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    
+    .stock-card .price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .stock-card .price {
+      font-size: 1.6rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .stock-card .change {
+      font-size: 0.9rem;
+    }
+    
+    .stock-card .change.up { color: var(--up-color); }
+    .stock-card .change.down { color: var(--down-color); }
+    
+    .stock-card .tech-row {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .stock-card .tech-tag {
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+    }
+    
+    .stock-card .tech-tag.rsi { color: var(--warn-color); }
+    .stock-card .tech-tag.kd { color: var(--accent); }
+    .stock-card .tech-tag.ma { color: #70a1ff; }
+    
+    .chart-container {
+      height: 160px;
+      margin-top: 10px;
+    }
+    
+    /* 比較工具 */
+    .compare-section {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .compare-input {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    
+    .compare-input input {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+    
+    .compare-input button {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .compare-result {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    
+    .compare-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    
+    .compare-card .stock-name {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .compare-metrics {
+      display: grid;
+      gap: 6px;
+    }
+    
+    .compare-metrics .metric {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+    }
+    
+    .compare-metrics .metric-label {
+      color: var(--text-secondary);
+    }
+    
+    .compare-metrics .metric-value {
+      font-weight: bold;
+    }
+    
+    .compare-metrics .metric-value.up { color: var(--up-color); }
+    .compare-metrics .metric-value.down { color: var(--down-color); }
+    
+    /* 基本面面板 */
+    .fundamental-section {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .fundamental-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .fundamental-item {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 10px;
+    }
+    
+    .fundamental-item .label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    
+    .fundamental-item .value {
+      font-size: 1rem;
+      font-weight: bold;
+    }
+    
+    /* 新聞區 */
+    .news-section {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .news-item {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .news-item:last-child { border-bottom: none; }
+    
+    .news-item a {
+      color: #70a1ff;
+      text-decoration: none;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      display: block;
+    }
+    
+    .news-item a:hover { text-decoration: underline; }
+    
+    .news-item .time {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    
+    /* 警示設定 */
+    .alert-section {
+      background: var(--bg-card);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .alert-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    
+    .alert-form input {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+    }
+    
+    .alert-form button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    
+    .alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .alert-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    
+    .alert-item .symbol { font-weight: bold; }
+    
+    .alert-item .condition { color: var(--text-secondary); }
+    
+    /* 最後更新 */
+    .last-update {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 16px;
+    }
+    
+    /* Loading / Error */
+    .loading {
+      text-align: center;
+      padding: 30px;
+      color: var(--text-secondary);
+    }
+    
+    .loading::after {
+      content: '...';
+      animation: dots 1.5s infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    
+    .error {
+      background: rgba(255, 71, 87, 0.2);
+      color: var(--down-color);
+      padding: 14px;
+      border-radius: 10px;
+      margin: 10px 0;
+      font-size: 0.85rem;
+    }
+    
+    /* 手機響應 */
+    @media (max-width: 600px) {
+      .container { padding: 10px; }
+      .header h1 { font-size: 1.1rem; }
+      .stock-grid { grid-template-columns: 1fr; }
+      .treemap-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+      .tech-grid { grid-template-columns: repeat(2, 1fr); }
+      .sr-levels { grid-template-columns: 1fr; }
+      .fundamental-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <h1>📊 看盤系統 v3</h1>
+      <div class="user-badge" id="user-badge">載入中...</div>
+    </div>
+    <div class="header-info">
+      <span id="current-time">--</span>
+      <span id="market-status">美股休市中</span>
+    </div>
+  </div>
+  
+  <div class="container">
+    <!-- 操作建議 -->
+    <div class="alert-card">
+      <h2>📈 當日操作建議</h2>
+      <div id="advice-content"><div class="loading">載入中</div></div>
+    </div>
+    
+    <!-- 熱力圖 -->
+    <h3 class="section-title">🗺️ 台股熱力圖</h3>
+    <div class="heatmap-container">
+      <div class="heatmap-legend">
+        <div class="legend-item"><div class="legend-box legend-up"></div><span>上漲</span></div>
+        <div class="legend-item"><div class="legend-box legend-down"></div><span>下跌</span></div>
+        <div class="legend-item"><div class="legend-box legend-flat"></div><span>平盤</span></div>
+        <span style="margin-left:auto; color:#6e7681;">區塊大小 = 市值權重</span>
+      </div>
+      <div id="treemap"><div class="loading">載入中</div></div>
+    </div>
+    
+    <!-- 產業概覽 -->
+    <h3 class="section-title">📊 產業概覽</h3>
+    <div class="sector-summary" id="sector-summary"><div class="loading">載入中</div></div>
+    
+    <!-- 個股走勢圖 -->
+    <h3 class="section-title">📈 個股走勢圖</h3>
+    <div class="stock-grid" id="stock-charts"><div class="loading">載入中</div></div>
+    
+    <!-- 比較工具 -->
+    <h3 class="section-title">⚖️ 個股比較</h3>
+    <div class="compare-section">
+      <div class="compare-input">
+        <input type="text" id="compare1" placeholder="股票代碼 1 (例如: 2330.TW)" value="2330.TW">
+        <input type="text" id="compare2" placeholder="股票代碼 2 (例如: 2313.TW)" value="2313.TW">
+        <button onclick="doCompare()">比較</button>
+      </div>
+      <div id="compare-result"><div class="loading">輸入股票代碼並點擊比較</div></div>
+    </div>
+    
+    <!-- 警示設定 -->
+    <h3 class="section-title">🔔 價格警示</h3>
+    <div class="alert-section">
+      <div class="alert-form">
+        <input type="text" id="alert-symbol" placeholder="股票代碼 (例如: 2330.TW)" value="2330.TW">
+        <input type="number" id="alert-above" placeholder="價格高於">
+        <input type="number" id="alert-below" placeholder="價格低於">
+        <button onclick="setAlert()">設定警示</button>
+      </div>
+      <div id="alert-list"><div class="loading">尚無警示設定</div></div>
+    </div>
+    
+    <!-- 新聞區 -->
+    <h3 class="section-title">📰 財經新聞</h3>
+    <div class="news-section" id="news-section"><div class="loading">載入中</div></div>
+    
+    <div class="last-update" id="last-update"></div>
+  </div>
+  
+  <script>
+    const API_BASE = '';
+    let charts = {};
+    let currentSymbol = '2330.TW';
+    
+    // 格式化數字
+    function fmt(num, dec = 2) {
+      return num ? num.toFixed(dec) : '—';
+    }
+    
+    // 格式化漲跌
+    function fmtChange(change, percent) {
+      if (!change && change !== 0) return { text: '—', cls: 'neutral' };
+      const sign = change >= 0 ? '+' : '';
+      return {
+        text: sign + fmt(change) + ' (' + sign + fmt(percent) + '%)',
+        cls: change > 0 ? 'up' : change < 0 ? 'down' : 'neutral'
+      };
+    }
+    
+    // 熱力圖顏色
+    function getColorClass(change) {
+      if (change > 3) return 'up-3';
+      if (change > 1) return 'up-1';
+      if (change > 0) return 'up-0';
+      if (change === 0) return 'flat';
+      if (change > -1) return 'down-0';
+      if (change > -3) return 'down-1';
+      return 'down-3';
+    }
+    
+    // 載入用戶資訊
+    async function loadUserInfo() {
+      try {
+        const res = await fetch(API_BASE + '/api/user');
+        const data = await res.json();
+        document.getElementById('user-badge').textContent = data.name;
+      } catch (e) {
+        document.getElementById('user-badge').textContent = '台中小陳';
+      }
+    }
+    
+    // 載入操作建議
+    async function loadAdvice() {
+      try {
+        const res = await fetch(API_BASE + '/api/advice');
+        const data = await res.json();
+        const sb = {
+          bullish: { text: '📈 偏多', cls: 'bullish' },
+          bearish: { text: '📉 偏空', cls: 'bearish' },
+          neutral: { text: '➡️ 觀望', cls: 'neutral' }
+        }[data.sentiment] || { text: '➡️ 觀望', cls: 'neutral' };
+        
+        const rb = {
+          low: { text: '低風險', cls: 'low' },
+          medium: { text: '中風險', cls: 'medium' },
+          high: { text: '高風險', cls: 'high' }
+        }[data.riskLevel] || { text: '中風險', cls: 'medium' };
+        
+        document.getElementById('advice-content').innerHTML =
+          '<span class="advice-badge ' + sb.cls + '">' + sb.text + '</span>' +
+          '<span class="risk-badge ' + rb.cls + '">' + rb.text + '</span>' +
+          '<p style="margin-top:12px; color:#a0a0b0; font-size:0.85rem;">' + data.summary + '</p>';
+      } catch (e) {
+        document.getElementById('advice-content').innerHTML = '<div class="error">載入失敗</div>';
+      }
+    }
+    
+    // 載入熱力圖
+    async function loadTreemap() {
+      try {
+        const res = await fetch(API_BASE + '/api/treemap');
+        const data = await res.json();
+        if (data && data.length > 0) {
+          renderTreemap(data);
+          renderSectorSummary(data);
+        } else {
+          document.getElementById('treemap').innerHTML = '<div class="error">暫無數據</div>';
+        }
+      } catch (e) {
+        document.getElementById('treemap').innerHTML = '<div class="error">載入失敗</div>';
+      }
+    }
+    
+    function renderTreemap(data) {
+      const sectors = {};
+      data.forEach(d => {
+        const sec = d.sector || '其他';
+        if (!sectors[sec]) sectors[sec] = [];
+        sectors[sec].push(d);
+      });
+      
+      const sectorNames = Object.keys(sectors).sort((a, b) => {
+        const sumA = sectors[a].reduce((s, d) => s + (d.marketCap || 0), 0);
+        const sumB = sectors[b].reduce((s, d) => s + (d.marketCap || 0), 0);
+        return sumB - sumA;
+      });
+      
+      let html = '';
+      sectorNames.forEach(secName => {
+        html += '<div class="sector-group">';
+        html += '<div class="sector-title">' + secName + '</div>';
+        html += '<div class="treemap-grid">';
+        
+        const stocks = sectors[secName].sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+        stocks.forEach(d => {
+          const colorClass = getColorClass(d.changePercent || 0);
+          html += '<div class="treemap-item ' + colorClass + '" onclick="showStockDetail(\'' + d.symbol + '\')">';
+          html += '<div class="symbol">' + d.symbol + '</div>';
+          html += '<div class="name">' + d.name + '</div>';
+          html += '<div class="price">$' + fmt(d.price) + '</div>';
+          html += '<div class="change">' + (d.changePercent >= 0 ? '+' : '') + fmt(d.changePercent) + '%</div>';
+          html += '</div>';
+        });
+        
+        html += '</div></div>';
+      });
+      
+      document.getElementById('treemap').innerHTML = html;
+    }
+    
+    function renderSectorSummary(data) {
+      const sectors = {};
+      data.forEach(d => {
+        const sec = d.sector || '其他';
+        if (!sectors[sec]) sectors[sec] = [];
+        sectors[sec].push(d);
+      });
+      
+      const stats = Object.keys(sectors).map(name => ({
+        name,
+        change: sectors[name].reduce((s, d) => s + (d.changePercent || 0), 0) / sectors[name].length
+      })).sort((a, b) => b.change - a.change);
+      
+      let html = '';
+      stats.slice(0, 8).forEach(s => {
+        html += '<div class="sector-item">';
+        html += '<div class="sector-name">' + s.name + '</div>';
+        html += '<div class="sector-change ' + (s.change >= 0 ? 'up' : 'down') + '">' + (s.change >= 0 ? '+' : '') + fmt(s.change) + '%</div>';
+        html += '</div>';
+      });
+      
+      document.getElementById('sector-summary').innerHTML = html || '<div class="error">暫無數據</div>';
+    }
+    
+    // 顯示個股詳情
+    async function showStockDetail(symbol) {
+      currentSymbol = symbol;
+      try {
+        const [quoteRes, techRes, fundamentalRes] = await Promise.all([
+          fetch(API_BASE + '/api/quote/' + symbol),
+          fetch(API_BASE + '/api/technical/' + symbol),
+          fetch(API_BASE + '/api/fundamental/' + symbol)
+        ]);
+        
+        const quote = await quoteRes.json();
+        const tech = await techRes.json();
+        const fundamental = await fundamentalRes.json();
+        
+        // 更新卡片內容
+        const card = document.getElementById('card-' + symbol) || createStockCard(symbol);
+        updateStockCard(card, quote, tech, fundamental);
+        
+        // 更新圖表
+        updateChart(symbol, quote.quotes, quote.change >= 0);
+        
+      } catch (e) {
+        console.error('Error loading stock detail:', e);
+      }
+    }
+    
+    function createStockCard(symbol) {
+      const html = '<div class="stock-card" id="card-' + symbol + '">' +
+        '<h3>' + symbol + '<span class="symbol-tag">' + symbol + '</span></h3>' +
+        '<div class="price-row">' +
+          '<span class="price" id="price-' + symbol + '">—</span>' +
+          '<span class="change" id="change-' + symbol + '">—</span>' +
+        '</div>' +
+        '<div class="tech-row" id="tech-' + symbol + '"></div>' +
+        '<div class="chart-container"><canvas id="chart-' + symbol + '"></canvas></div>' +
+        '<div class="sr-levels" id="sr-' + symbol + '"></div>' +
+      '</div>';
+      document.getElementById('stock-charts').innerHTML += html;
+      return document.getElementById('card-' + symbol);
+    }
+    
+    function updateStockCard(card, quote, tech, fundamental) {
+      const change = fmtChange(quote.change, quote.changePercent);
+      
+      card.innerHTML = 
+        '<h3>' + quote.symbol + '<span class="symbol-tag">' + quote.symbol + '</span></h3>' +
+        '<div class="price-row">' +
+          '<span class="price">$' + fmt(quote.price) + '</span>' +
+          '<span class="change ' + change.cls + '">' + change.text + '</span>' +
+        '</div>' +
+        '<div class="tech-row" id="tech-' + quote.symbol + '">' +
+          '<span class="tech-tag rsi">RSI: ' + (tech.indicators?.rsi || '—') + '</span>' +
+          '<span class="tech-tag kd">KD: ' + (tech.indicators?.kd || '—') + '</span>' +
+          '<span class="tech-tag ma">MA5: ' + (tech.indicators?.ma5 || '—') + '</span>' +
+        '</div>' +
+        '<div class="chart-container"><canvas id="chart-' + quote.symbol + '"></canvas></div>' +
+        '<div class="sr-levels" id="sr-' + quote.symbol + '">' +
+          '<div class="sr-box resistance">' +
+            '<div class="label">壓力位 R1</div>' +
+            '<div class="value up">' + (tech.supportResistance?.r1 || '—') + '</div>' +
+          '</div>' +
+          '<div class="sr-box support">' +
+            '<div class="label">支撐位 S1</div>' +
+            '<div class="value down">' + (tech.supportResistance?.s1 || '—') + '</div>' +
+          '</div>' +
+        '</div>';
+      
+      // 更新信號
+      if (tech.signals && tech.signals.length > 0) {
+        let signalHtml = '<div class="signal-list">';
+        tech.signals.forEach(s => {
+          const actionCls = s.action.includes('買') ? 'buy' : s.action.includes('賣') ? 'sell' : 'hold';
+          signalHtml += '<div class="signal-item">' +
+            '<span class="indicator">' + s.indicator + ': ' + s.value + '</span>' +
+            '<span class="action ' + actionCls + '">' + s.action + '</span>' +
+          '</div>';
+        });
+        signalHtml += '</div>';
+        card.innerHTML += signalHtml;
+      }
+      
+      // 更新基本面
+      if (fundamental) {
+        card.innerHTML += 
+          '<div class="fundamental-grid" style="margin-top:12px;">' +
+            '<div class="fundamental-item"><div class="label">本益比 (P/E)</div><div class="value">' + (fundamental.peRatio || '—') + '</div></div>' +
+            '<div class="fundamental-item"><div class="label">EPS</div><div class="value">' + (fundamental.eps ? '$' + fmt(fundamental.eps) : '—') + '</div></div>' +
+            '<div class="fundamental-item"><div class="label">營收</div><div class="value">' + (fundamental.revenue ? formatLargeNum(fundamental.revenue) : '—') + '</div></div>' +
+            '<div class="fundamental-item"><div class="label">建議</div><div class="value">' + (fundamental.recommendation || '—') + '</div></div>' +
+          '</div>';
+      }
+    }
+    
+    function formatLargeNum(num) {
+      if (num >= 1e12) return (num / 1e12).toFixed(2) + '兆';
+      if (num >= 1e8) return (num / 1e8).toFixed(2) + '億';
+      if (num >= 1e4) return (num / 1e4).toFixed(2) + '萬';
+      return num.toString();
+    }
+    
+    // 更新圖表
+    function updateChart(symbol, quotes, isUp) {
+      const ctx = document.getElementById('chart-' + symbol)?.getContext('2d');
+      if (!ctx) return;
+      
+      if (charts[symbol]) {
+        charts[symbol].destroy();
+      }
+      
+      const labels = quotes.slice(-30).map(q => q.time);
+      const prices = quotes.slice(-30).map(q => q.close);
+      
+      charts[symbol] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data: prices,
+            borderColor: isUp ? '#00d26a' : '#ff4757',
+            backgroundColor: isUp ? 'rgba(0, 210, 106, 0.1)' : 'rgba(255, 71, 87, 0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#a0a0b0', font: { size: 10 } } }
+          }
+        }
+      });
+    }
+    
+    // 個股比較
+    async function doCompare() {
+      const s1 = document.getElementById('compare1').value.trim() || '2330.TW';
+      const s2 = document.getElementById('compare2').value.trim() || '2313.TW';
+      
+      try {
+        const res = await fetch(API_BASE + '/api/compare/' + s1 + ',' + s2);
+        const data = await res.json();
+        
+        let html = '<div class="compare-result">';
+        data.stocks.forEach(stock => {
+          const change = fmtChange(stock.change, stock.changePercent);
+          html += '<div class="compare-card">';
+          html += '<div class="stock-name">' + stock.symbol + '</div>';
+          html += '<div class="compare-metrics">';
+          html += '<div class="metric"><span class="metric-label">價格</span><span class="metric-value">$' + fmt(stock.price) + '</span></div>';
+          html += '<div class="metric"><span class="metric-label">漲跌</span><span class="metric-value ' + change.cls + '">' + change.text + '</span></div>';
+          html += '<div class="metric"><span class="metric-label">RSI</span><span class="metric-value">' + (stock.rsi || '—') + '</span></div>';
+          html += '<div class="metric"><span class="metric-label">KD</span><span class="metric-value">' + (stock.kd || '—') + '</span></div>';
+          html += '<div class="metric"><span class="metric-label">MA20</span><span class="metric-value">' + (stock.ma20 || '—') + '</span></div>';
+          if (stock.fundamental) {
+            html += '<div class="metric"><span class="metric-label">P/E</span><span class="metric-value">' + (stock.fundamental.peRatio || '—') + '</span></div>';
+            html += '<div class="metric"><span class="metric-label">EPS</span><span class="metric-value">' + (stock.fundamental.eps ? '$' + fmt(stock.fundamental.eps) : '—') + '</span></div>';
+          }
+          html += '</div></div>';
+        });
+        html += '</div>';
+        document.getElementById('compare-result').innerHTML = html;
+      } catch (e) {
+        document.getElementById('compare-result').innerHTML = '<div class="error">比較失敗</div>';
+      }
+    }
+    
+    // 警示設定
+    async function setAlert() {
+      const symbol = document.getElementById('alert-symbol').value.trim();
+      const priceAbove = parseFloat(document.getElementById('alert-above').value);
+      const priceBelow = parseFloat(document.getElementById('alert-below').value);
+      
+      if (!symbol) return;
+      
+      try {
+        await fetch(API_BASE + '/api/alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, priceAbove: priceAbove || null, priceBelow: priceBelow || null })
+        });
+        
+        document.getElementById('alert-above').value = '';
+        document.getElementById('alert-below').value = '';
+        loadAlerts();
+      } catch (e) {
+        console.error('Alert error:', e);
+      }
+    }
+    
+    async function loadAlerts() {
+      // 簡化版：從 localStorage 讀取
+      const alerts = JSON.parse(localStorage.getItem('stockAlerts') || '[]');
+      
+      if (alerts.length === 0) {
+        document.getElementById('alert-list').innerHTML = '<div class="loading">尚無警示設定</div>';
+        return;
+      }
+      
+      let html = '<div class="alert-list">';
+      alerts.forEach(a => {
+        html += '<div class="alert-item">' +
+          '<span class="symbol">' + a.symbol + '</span>' +
+          '<span class="condition">' + (a.priceAbove ? '>' + a.priceAbove : '') + ' ' + (a.priceBelow ? '<' + a.priceBelow : '') + '</span>' +
+          '<button onclick="removeAlert(\'' + a.symbol + '\')" style="background:none;border:none;color:#ff4757;cursor:pointer;">✕</button>' +
+        '</div>';
+      });
+      html += '</div>';
+      document.getElementById('alert-list').innerHTML = html;
+    }
+    
+    function removeAlert(symbol) {
+      const alerts = JSON.parse(localStorage.getItem('stockAlerts') || '[]');
+      const filtered = alerts.filter(a => a.symbol !== symbol);
+      localStorage.setItem('stockAlerts', JSON.stringify(filtered));
+      loadAlerts();
+    }
+    
+    // 載入新聞
+    async function loadNews() {
+      try {
+        const res = await fetch(API_BASE + '/api/news');
+        const data = await res.json();
+        if (data && data.length > 0) {
+          let html = '';
+          data.slice(0, 6).forEach(item => {
+            html += '<div class="news-item">' +
+              '<a href="' + item.link + '" target="_blank">' + item.title + '</a>' +
+              '<div class="time">' + (item.pubDate || '').substring(0, 16) + '</div>' +
+            '</div>';
+          });
+          document.getElementById('news-section').innerHTML = html;
+        } else {
+          document.getElementById('news-section').innerHTML = '<div class="error">暫無新聞</div>';
+        }
+      } catch (e) {
+        document.getElementById('news-section').innerHTML = '<div class="error">載入失敗</div>';
+      }
+    }
+    
+    // 初始化
+    async function init() {
+      loadUserInfo();
+      await Promise.all([loadAdvice(), loadTreemap(), loadNews()]);
+      
+      // 預設顯示幾支熱門股票
+      const defaultStocks = [
+        { name: '台積電', symbol: '2330.TW' },
+        { name: '華通', symbol: '2313.TW' },
+        { name: '昇達科', symbol: '3491.TW' },
+        { name: 'NVDA', symbol: 'NVDA' }
+      ];
+      
+      for (const stock of defaultStocks) {
+        await showStockDetail(stock.symbol);
+      }
+      
+      loadAlerts();
+      updateTime();
+      
+      setInterval(() => { loadTreemap(); updateTime(); }, 30000);
+      setInterval(() => { loadNews(); }, 300000);
+    }
+    
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('current-time').textContent = now.toLocaleString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('last-update').textContent = '最後更新: ' + now.toLocaleString('zh-TW');
+      
+      // 檢查是否為美股交易時間
+      const hour = now.getHours();
+      const day = now.getDay();
+      const isWeekday = day > 0 && day < 6;
+      const isMarketTime = isWeekday && ((hour >= 22 && hour < 24) || (hour >= 0 && hour < 5));
+      document.getElementById('market-status').textContent = isMarketTime ? '🔥 美股交易中' : '美股休市中';
+    }
+    
+    init();
+  </script>
+</body>
+</html>
