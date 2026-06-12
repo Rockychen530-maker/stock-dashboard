@@ -11,6 +11,14 @@ const PASSWORD = 'rockygogogo';
 // 簡單的 session 管理（記憶體）
 const sessions = new Set();
 
+// 快取機制
+const cache = {
+  treemap: { data: null, time: 0 },
+  quotes: { data: null, time: 0 },
+  advice: { data: null, time: 0 }
+};
+const CACHE_TTL = 60000; // 1分鐘快取
+
 // 用戶資訊（來自對話元數據）
 const USER_INFO = {
   name: '台中小陳',
@@ -411,26 +419,42 @@ async function getFundamentalData(symbol) {
   }
 }
 
-// 取得熱力圖數據
+// 取得熱力圖數據（已優化快取）
 async function getTreemapData() {
+  // 檢查快取（1分鐘內有效）
+  if (cache.treemap.data && (Date.now() - cache.treemap.time) < CACHE_TTL) {
+    return cache.treemap.data;
+  }
+  
   const result = [];
   
-  for (const stock of TREEMAP_STOCKS) {
-    const quote = await getStockQuote(stock.symbol, '1mo');
-    if (quote) {
-      result.push({
-        symbol: stock.symbol.replace('.TW', ''),
-        name: stock.name,
-        sector: stock.sector,
-        price: quote.price,
-        change: quote.change,
-        changePercent: quote.changePercent,
-        volume: quote.volume,
-        marketCap: quote.volume * quote.price
-      });
-    }
-    await new Promise(r => setTimeout(r, 50));
+  // 並行請求（一次最多5支）
+  const batchSize = 5;
+  for (let i = 0; i < TREEMAP_STOCKS.length; i += batchSize) {
+    const batch = TREEMAP_STOCKS.slice(i, i + batchSize);
+    const promises = batch.map(stock => getStockQuote(stock.symbol, '1mo'));
+    const quotes = await Promise.all(promises);
+    
+    quotes.forEach((quote, idx) => {
+      if (quote) {
+        const stock = batch[idx];
+        result.push({
+          symbol: stock.symbol.replace('.TW', ''),
+          name: stock.name,
+          sector: stock.sector,
+          price: quote.price,
+          change: quote.change,
+          changePercent: quote.changePercent,
+          volume: quote.volume,
+          marketCap: quote.volume * quote.price
+        });
+      }
+    });
   }
+  
+  // 更新快取
+  cache.treemap.data = result;
+  cache.treemap.time = Date.now();
   
   return result;
 }
@@ -604,6 +628,11 @@ app.get('/api/news', async (req, res) => {
 
 // 簡單的建議引擎
 app.get('/api/advice', async (req, res) => {
+  // 檢查快取（30秒內有效）
+  if (cache.advice.data && (Date.now() - cache.advice.time) < 30000) {
+    return res.json(cache.advice.data);
+  }
+  
   try {
     const [sp500, nasdaq, dow] = await Promise.all([
       getStockQuote('^GSPC'),
@@ -629,13 +658,19 @@ app.get('/api/advice', async (req, res) => {
       }
     }
     
-    res.json({
+    const result = {
       sentiment,
       direction,
       riskLevel,
       summary: `美股三大指數平均表現為 ${direction}，建議 ${riskLevel} 風險操作`,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    // 更新快取
+    cache.advice.data = result;
+    cache.advice.time = Date.now();
+    
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
