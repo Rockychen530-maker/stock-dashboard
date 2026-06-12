@@ -79,6 +79,42 @@
       color: var(--text-secondary);
     }
     
+    .quick-indices {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .index-card {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .index-card .index-name {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    
+    .index-card .index-price {
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--text-primary);
+    }
+    
+    .index-card .index-change {
+      font-size: 0.75rem;
+      margin-top: 2px;
+    }
+    
+    .index-card .index-change.up { color: var(--up-color); }
+    .index-card .index-change.down { color: var(--down-color); }
+    .index-card .index-change.neutral { color: var(--text-secondary); }
+    
     .container {
       max-width: 1400px;
       margin: 0 auto;
@@ -448,6 +484,56 @@
     .stock-card .tech-tag.rsi { color: var(--warn-color); }
     .stock-card .tech-tag.kd { color: var(--accent); }
     .stock-card .tech-tag.ma { color: #70a1ff; }
+    .stock-card .tech-tag.macd { color: #ff6b81; }
+    
+    .signal-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+    }
+    
+    .signal-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    
+    .signal-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .signal-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    
+    .signal-fill.strong-buy { background: linear-gradient(90deg, #00d26a, #00ff88); }
+    .signal-fill.buy { background: linear-gradient(90deg, #00d26a, #70ff70); }
+    .signal-fill.neutral { background: linear-gradient(90deg, #666, #888); }
+    .signal-fill.sell { background: linear-gradient(90deg, #ff4757, #ff6b81); }
+    .signal-fill.strong-sell { background: linear-gradient(90deg, #ff4757, #ff0000); }
+    
+    .signal-text {
+      font-size: 0.75rem;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: right;
+    }
+    
+    .signal-text.strong-buy { color: #00d26a; }
+    .signal-text.buy { color: #70ff70; }
+    .signal-text.neutral { color: #888; }
+    .signal-text.sell { color: #ff6b81; }
+    .signal-text.strong-sell { color: #ff4757; }
     
     .chart-container {
       height: 140px;
@@ -804,6 +890,30 @@
   </div>
   
   <div class="container">
+    <!-- 快速指數欄 -->
+    <div class="quick-indices">
+      <div class="index-card" id="idx-sp500">
+        <div class="index-name">S&P 500</div>
+        <div class="index-price">—</div>
+        <div class="index-change">—</div>
+      </div>
+      <div class="index-card" id="idx-nasdaq">
+        <div class="index-name">Nasdaq</div>
+        <div class="index-price">—</div>
+        <div class="index-change">—</div>
+      </div>
+      <div class="index-card" id="idx-dow">
+        <div class="index-name">Dow Jones</div>
+        <div class="index-price">—</div>
+        <div class="index-change">—</div>
+      </div>
+      <div class="index-card" id="idx-twii">
+        <div class="index-name">台股加權</div>
+        <div class="index-price">—</div>
+        <div class="index-change">—</div>
+      </div>
+    </div>
+    
     <!-- 操作建議 -->
     <div class="alert-card">
       <h2>📈 當日操作建議</h2>
@@ -935,6 +1045,30 @@
         document.getElementById('user-badge').textContent = data.name;
       } catch (e) {
         document.getElementById('user-badge').textContent = '台中小陳';
+      }
+    }
+    
+    // 載入快速指數
+    async function loadQuickIndices() {
+      const indices = [
+        { id: 'idx-sp500', symbol: '^GSPC' },
+        { id: 'idx-nasdaq', symbol: '^IXIC' },
+        { id: 'idx-dow', symbol: '^DJI' },
+        { id: 'idx-twii', symbol: '^TWII' }
+      ];
+      
+      for (const idx of indices) {
+        try {
+          const res = await fetch(API_BASE + '/api/quote/' + idx.symbol);
+          const data = await res.json();
+          if (data && data.price) {
+            const change = fmtChange(data.change, data.changePercent);
+            document.querySelector('#' + idx.id + ' .index-price').textContent = '$' + fmt(data.price);
+            const changeEl = document.querySelector('#' + idx.id + ' .index-change');
+            changeEl.textContent = change.text;
+            changeEl.className = 'index-change ' + change.cls;
+          }
+        } catch (e) {}
       }
     }
     
@@ -1108,6 +1242,14 @@
           '<span class="tech-tag rsi">RSI: ' + (tech.indicators?.rsi || '—') + '</span>' +
           '<span class="tech-tag kd">KD: ' + (tech.indicators?.kd || '—') + '</span>' +
           '<span class="tech-tag ma">MA5: ' + (tech.indicators?.ma5 || '—') + '</span>' +
+          '<span class="tech-tag macd">MACD: ' + (tech.indicators?.macd || '—') + '</span>' +
+        '</div>' +
+        '<div class="signal-bar" id="signal-bar-' + quote.symbol + '">' +
+          '<div class="signal-label">信號強度</div>' +
+          '<div class="signal-track">' +
+            '<div class="signal-fill ' + getSignalClass(tech.signals) + '" style="width:' + getSignalWidth(tech.signals) + '%"></div>' +
+          '</div>' +
+          '<div class="signal-text">' + getSignalText(tech.signals) + '</div>' +
         '</div>' +
         '<div class="time-range-selector" id="time-range-' + quote.symbol + '">' +
           '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'1D\')">1D</button>' +
@@ -1155,6 +1297,43 @@
             '<div class="fundamental-item"><div class="label">建議</div><div class="value">' + (fundamental.recommendation || '—') + '</div></div>' +
           '</div>';
       }
+    }
+    
+    function getSignalClass(signals) {
+      if (!signals || signals.length === 0) return 'neutral';
+      let buyCount = 0, sellCount = 0;
+      signals.forEach(s => {
+        if (s.action.includes('買')) buyCount++;
+        if (s.action.includes('賣')) sellCount++;
+      });
+      const total = signals.length;
+      const ratio = buyCount / total;
+      if (ratio >= 0.8) return 'strong-buy';
+      if (ratio >= 0.6) return 'buy';
+      if (ratio >= 0.4) return 'neutral';
+      if (ratio >= 0.2) return 'sell';
+      return 'strong-sell';
+    }
+    
+    function getSignalWidth(signals) {
+      if (!signals || signals.length === 0) return 50;
+      let buyCount = 0;
+      signals.forEach(s => {
+        if (s.action.includes('買')) buyCount++;
+      });
+      return Math.round((buyCount / signals.length) * 100);
+    }
+    
+    function getSignalText(signals) {
+      if (!signals || signals.length === 0) return '中性';
+      let buyCount = 0, sellCount = 0;
+      signals.forEach(s => {
+        if (s.action.includes('買')) buyCount++;
+        if (s.action.includes('賣')) sellCount++;
+      });
+      if (buyCount > sellCount) return '偏多 ↑';
+      if (sellCount > buyCount) return '偏空 ↓';
+      return '中性';
     }
     
     function formatLargeNum(num) {
@@ -1565,7 +1744,7 @@
     // 初始化
     async function init() {
       loadUserInfo();
-      await Promise.all([loadAdvice(), loadTreemap(), loadNews()]);
+      await Promise.all([loadAdvice(), loadTreemap(), loadNews(), loadQuickIndices()]);
       
       // 預設顯示幾支熱門股票
       const defaultStocks = [

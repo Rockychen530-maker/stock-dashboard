@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 AI Stock Dashboard Pro - 專業股票看盤系統</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%); min-height: 100vh; color: #fff; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    
+    /* Hero Section */
+    .hero { text-align: center; padding: 60px 0; }
+    .hero h1 { font-size: 3rem; margin-bottom: 20px; background: linear-gradient(135deg, #e94560, #ff6b81); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 1.3rem; color: #a0a0b0; margin-bottom: 30px; }
+    .hero .subtitle { font-size: 1rem; color: #666; margin-top: 10px; }
+    
+    .cta-group { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+    .cta-btn { padding: 15px 35px; border-radius: 30px; font-size: 1rem; font-weight: bold; text-decoration: none; transition: all 0.3s; cursor: pointer; border: none; }
+    .cta-btn.primary { background: linear-gradient(135deg, #e94560, #ff6b81); color: #fff; }
+    .cta-btn.secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+    .cta-btn:hover { transform: scale(1.05); }
+    
+    /* Features */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin: 50px 0; }
+    .feature { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); }
+    .feature-icon { font-size: 2.5rem; margin-bottom: 15px; }
+    .feature h3 { font-size: 1.2rem; margin-bottom: 10px; color: #fff; }
+    .feature p { color: #a0a0b0; line-height: 1.6; }
+    
+    /* Pricing */
+    .pricing { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 40px; margin: 50px 0; }
+    .pricing h2 { text-align: center; margin-bottom: 30px; font-size: 2rem; }
+    .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+    .price-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 30px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+    .price-card.featured { border: 2px solid #e94560; transform: scale(1.05); }
+    .price-card .name { font-size: 1.2rem; color: #a0a0b0; margin-bottom: 15px; }
+    .price-card .price { font-size: 2.5rem; font-weight: bold; margin-bottom: 20px; }
+    .price-card .price span { font-size: 1rem; color: #666; }
+    .price-card ul { list-style: none; text-align: left; }
+    .price-card li { padding: 8px 0; color: #a0a0b0; }
+    .price-card li::before { content: '✅ '; }
+    
+    /* Screenshots */
+    .screenshots { margin: 50px 0; }
+    .screenshots h2 { text-align: center; margin-bottom: 30px; }
+    .screenshot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .screenshot { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; }
+    .screenshot img { width: 100%; border-radius: 8px; }
+    .screenshot p { text-align: center; margin-top: 10px; color: #a0a0b0; font-size: 0.9rem; }
+    
+    /* Demo Section */
+    .demo { background: linear-gradient(135deg, #16213e, #0f3460); border-radius: 20px; padding: 40px; margin: 50px 0; text-align: center; }
+    .demo h2 { margin-bottom: 20px; }
+    .demo p { color: #a0a0b0; margin-bottom: 20px; }
+    .demo-code { background: rgba(0,0,0,0.3); padding: 15px 30px; border-radius: 10px; display: inline-block; font-family: monospace; font-size: 1.2rem; margin: 10px 0; }
+    
+    /* Footer */
+    .footer { text-align: center; padding: 40px 0; color: #666; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 50px; }
+    .footer a { color: #e94560; text-decoration: none; }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2rem; }
+      .price-card.featured { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>📊 AI Stock Dashboard Pro</h1>
+      <p>專業股票看盤系統 - 技術分析 | K線圖 | 產業熱力圖</p>
+      <p class="subtitle">適用於台股、美股投資人</p>
+      <div class="cta-group">
+        <a href="#demo" class="cta-btn primary">免費試用</a>
+        <a href="#pricing" class="cta-btn secondary">查看方案</a>
+      </div>
+    </div>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🕯️</div>
+        <h3>K線圖（蠟燭圖）</h3>
+        <p>專業的OHLC蠟燭圖，清楚顯示開盤、最高、最低、收盤價格，助你一眼掌握股價趨勢</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📈</div>
+        <h3>技術指標</h3>
+        <p>RSI、KD、MA5/20/60、MACD 完整技術指標，自動計算買賣信號</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🗺️</div>
+        <h3>產業熱力圖</h3>
+        <p>一眼看出強弱勢族群，發現資金流向，掌握市場脈動</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📊</div>
+        <h3>成交量分析</h3>
+        <p>柱狀圖顯示成交量，與價格圖表同步，判斷市場動能</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <h3>股票篩選器</h3>
+        <p>按產業、RSI、趨勢篩選，快速找到符合條件的股票</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚖️</div>
+        <h3>個股比較</h3>
+        <p>同時比較2檔股票的價格、技術指標、基本面，輔助決策</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔔</div>
+        <h3>價格警示</h3>
+        <p>自訂價格警示，達到目標價時主動通知，不再錯過進場時機</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📱</div>
+        <h3>手機友善</h3>
+        <p>響應式設計，手機、平板、電腦都能輕鬆使用</p>
+      </div>
+    </div>
+    
+    <div class="pricing" id="pricing">
+      <h2>💰 方案選擇</h2>
+      <div class="price-grid">
+        <div class="price-card">
+          <div class="name">免費版</div>
+          <div class="price">$0<span>/永久</span></div>
+          <ul>
+            <li>基本報價</li>
+            <li>簡單技術指標</li>
+            <li>產業熱力圖</li>
+            <li>5支股票追蹤</li>
+          </ul>
+        </div>
+        <div class="price-card featured">
+          <div class="name">專業版</div>
+          <div class="price">$1,500<span>/月</span></div>
+          <ul>
+            <li>K線圖（蠟燭圖）</li>
+            <li>完整技術分析</li>
+            <li>MA均線疊加</li>
+            <li>成交量分析</li>
+            <li>股票篩選器</li>
+            <li>個股比較</li>
+            <li>價格警示</li>
+            <li>30支股票追蹤</li>
+          </ul>
+        </div>
+        <div class="price-card">
+          <div class="name">企業版</div>
+          <div class="price">$5,000<span>/月起</span></div>
+          <ul>
+            <li>專業版全部功能</li>
+            <li>API 接口</li>
+            <li>私有部署</li>
+            <li>技術支援</li>
+            <li>功能定制</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="demo" id="demo">
+      <h2>🎮 立即試用</h2>
+      <p>密碼解鎖即可使用完整功能</p>
+      <div class="demo-code">密碼：rockygogogo</div>
+      <p style="margin-top: 20px; font-size: 0.9rem; color: #666;">*請使用桌面瀏覽器以獲得最佳體驗</p>
+    </div>
+    
+    <div class="footer">
+      <p>📊 AI Stock Dashboard Pro | 2026</p>
+      <p style="margin-top: 10px;">聯絡方式：<a href="#">Discord: rocky_9636</a></p>
+    </div>
+  </div>
+</body>
+</html>
