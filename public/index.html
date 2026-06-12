@@ -450,8 +450,42 @@
     .stock-card .tech-tag.ma { color: #70a1ff; }
     
     .chart-container {
-      height: 160px;
-      margin-top: 10px;
+      height: 140px;
+      margin-top: 8px;
+    }
+    
+    .volume-container {
+      height: 50px;
+      margin-top: 4px;
+    }
+    
+    .time-range-selector {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .time-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .time-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-primary);
+    }
+    
+    .time-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
     }
     
     /* 比較工具 */
@@ -862,7 +896,10 @@
   <script>
     const API_BASE = '';
     let charts = {};
+    let volumes = {};
+    let stockQuotes = {};
     let currentSymbol = '2330.TW';
+    let currentTimeRange = {};
     
     // 格式化數字
     function fmt(num, dec = 2) {
@@ -1018,6 +1055,9 @@
         const tech = await techRes.json();
         const fundamental = await fundamentalRes.json();
         
+        // 儲存 quotes 以便時間範圍切換
+        stockQuotes[symbol] = quote.quotes;
+        
         // 更新卡片內容
         const card = document.getElementById('card-' + symbol) || createStockCard(symbol);
         updateStockCard(card, quote, tech, fundamental);
@@ -1038,7 +1078,17 @@
           '<span class="change" id="change-' + symbol + '">—</span>' +
         '</div>' +
         '<div class="tech-row" id="tech-' + symbol + '"></div>' +
+        '<div class="time-range-selector" id="time-range-' + symbol + '">' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'1D\')">1D</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'5D\')">5D</button>' +
+          '<button class="time-btn active" onclick="changeTimeRange(\'' + symbol + '\', \'1M\')">1M</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'3M\')">3M</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'YTD\')">YTD</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'1Y\')">1Y</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + symbol + '\', \'ALL\')">ALL</button>' +
+        '</div>' +
         '<div class="chart-container"><canvas id="chart-' + symbol + '"></canvas></div>' +
+        '<div class="volume-container"><canvas id="volume-' + symbol + '"></canvas></div>' +
         '<div class="sr-levels" id="sr-' + symbol + '"></div>' +
       '</div>';
       document.getElementById('stock-charts').innerHTML += html;
@@ -1059,7 +1109,17 @@
           '<span class="tech-tag kd">KD: ' + (tech.indicators?.kd || '—') + '</span>' +
           '<span class="tech-tag ma">MA5: ' + (tech.indicators?.ma5 || '—') + '</span>' +
         '</div>' +
+        '<div class="time-range-selector" id="time-range-' + quote.symbol + '">' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'1D\')">1D</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'5D\')">5D</button>' +
+          '<button class="time-btn active" onclick="changeTimeRange(\'' + quote.symbol + '\', \'1M\')">1M</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'3M\')">3M</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'YTD\')">YTD</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'1Y\')">1Y</button>' +
+          '<button class="time-btn" onclick="changeTimeRange(\'' + quote.symbol + '\', \'ALL\')">ALL</button>' +
+        '</div>' +
         '<div class="chart-container"><canvas id="chart-' + quote.symbol + '"></canvas></div>' +
+        '<div class="volume-container"><canvas id="volume-' + quote.symbol + '"></canvas></div>' +
         '<div class="sr-levels" id="sr-' + quote.symbol + '">' +
           '<div class="sr-box resistance">' +
             '<div class="label">壓力位 R1</div>' +
@@ -1104,6 +1164,20 @@
       return num.toString();
     }
     
+    // 計算移動平均線
+    function calculateMA(prices, period) {
+      const result = [];
+      for (let i = 0; i < prices.length; i++) {
+        if (i < period - 1) {
+          result.push({ x: new Date().toISOString().split('T')[0], y: null });
+        } else {
+          const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+          result.push({ x: new Date().toISOString().split('T')[0], y: sum / period });
+        }
+      }
+      return result;
+    }
+    
     // 更新圖表（K線圖/蠟燭圖）
     function updateChart(symbol, quotes, isUp) {
       const ctx = document.getElementById('chart-' + symbol)?.getContext('2d');
@@ -1121,26 +1195,64 @@
         c: q.close
       }));
       
+      // 計算 MA 線
+      const closePrices = quotes.map(q => q.close);
+      const ma5Data = calculateMA(closePrices, 5);
+      const ma20Data = calculateMA(closePrices, 20);
+      const ma60Data = calculateMA(closePrices, 60);
+      
       const upColor = '#00d26a';
       const downColor = '#ff4757';
       
       charts[symbol] = new Chart(ctx, {
         type: 'candlestick',
         data: {
-          datasets: [{
-            label: symbol,
-            data: ohlcData,
-            color: {
-              up: upColor,
-              down: downColor,
-              unchanged: '#ffa502'
+          datasets: [
+            {
+              label: symbol,
+              data: ohlcData,
+              color: {
+                up: upColor,
+                down: downColor,
+                unchanged: '#ffa502'
+              },
+              borderColor: {
+                up: upColor,
+                down: downColor,
+                unchanged: '#ffa502'
+              }
             },
-            borderColor: {
-              up: upColor,
-              down: downColor,
-              unchanged: '#ffa502'
+            {
+              label: 'MA5',
+              type: 'line',
+              data: ma5Data,
+              borderColor: '#ffd700',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'MA20',
+              type: 'line',
+              data: ma20Data,
+              borderColor: '#70a1ff',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false,
+              tension: 0.1
+            },
+            {
+              label: 'MA60',
+              type: 'line',
+              data: ma60Data,
+              borderColor: '#ff6b81',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false,
+              tension: 0.1
             }
-          }]
+          ]
         },
         options: {
           responsive: true,
@@ -1176,6 +1288,97 @@
           }
         }
       });
+      
+      // 更新成交量圖
+      updateVolumeChart(symbol, quotes, isUp);
+    }
+    
+    // 更新成交量圖
+    function updateVolumeChart(symbol, quotes, isUp) {
+      const ctx = document.getElementById('volume-' + symbol)?.getContext('2d');
+      if (!ctx) return;
+      
+      if (volumes[symbol]) {
+        volumes[symbol].destroy();
+      }
+      
+      const volumeData = quotes.slice(-60).map(q => ({
+        x: q.time,
+        y: q.volume
+      }));
+      
+      const upColor = '#00d26a';
+      const downColor = '#ff4757';
+      
+      volumes[symbol] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          datasets: [{
+            label: 'Volume',
+            data: volumeData,
+            backgroundColor: volumeData.map((d, i) => {
+              if (i === 0) return d.y > 0 ? upColor : downColor;
+              return d.y >= volumeData[i-1].y ? upColor : downColor;
+            }),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: false }
+          }
+        }
+      });
+    }
+    
+    // 改變時間範圍
+    function changeTimeRange(symbol, range) {
+      // 更新按鈕狀態
+      const container = document.getElementById('time-range-' + symbol);
+      if (container) {
+        container.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = container.querySelector(`button[onclick*="${range}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+      }
+      
+      // 取得原始資料並重新繪製
+      if (stockQuotes[symbol]) {
+        const quotes = stockQuotes[symbol];
+        const now = new Date();
+        let filteredQuotes = quotes;
+        
+        switch(range) {
+          case '1D':
+            filteredQuotes = quotes.slice(-1);
+            break;
+          case '5D':
+            filteredQuotes = quotes.slice(-5);
+            break;
+          case '1M':
+            filteredQuotes = quotes.slice(-30);
+            break;
+          case '3M':
+            filteredQuotes = quotes.slice(-90);
+            break;
+          case 'YTD':
+            const yearStart = new Date(now.getFullYear(), 0, 1);
+            filteredQuotes = quotes.filter(q => new Date(q.time) >= yearStart);
+            break;
+          case '1Y':
+            filteredQuotes = quotes.slice(-252);
+            break;
+          case 'ALL':
+            filteredQuotes = quotes;
+            break;
+        }
+        
+        const isUp = filteredQuotes.length > 0 && filteredQuotes[filteredQuotes.length-1].close >= filteredQuotes[0].open;
+        updateChart(symbol, filteredQuotes, isUp);
+      }
     }
     
     // 個股比較
