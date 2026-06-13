@@ -1,0 +1,28 @@
+# 依賴
+node_modules/
+
+# 日誌
+*.log
+server.log
+
+# 系統
+.DS_Store
+*.pem
+
+# 環境變數（包含密碼）
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 備份
+*.bak
+*.backup

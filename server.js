@@ -126,17 +126,17 @@ function createLoginPage() {
 </html>`;
 }
 
-// 允許 CORS（讓 Vercel 可以存取）
+// Cookie parser 必須最先初始化
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+// CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   next();
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-
-// 需要在 express 之前加入 cookie-parser
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
 
 // 所有請求都需要驗證密碼（除了 API）
 app.use(authMiddleware);
@@ -288,11 +288,11 @@ function calculateSupportResistance(highs, lows, closes) {
   
   const r1 = 2 * pivot - lows[last];
   const r2 = pivot + (highs[last] - lows[last]);
-  const r3 = high = highs[last] + 2 * (pivot - lows[last]);
+  const r3 = highs[last] + 2 * (pivot - lows[last]);
   
   const s1 = 2 * pivot - highs[last];
   const s2 = pivot - (highs[last] - lows[last]);
-  const s3 = low = lows[last] - 2 * (highs[last] - pivot);
+  const s3 = lows[last] - 2 * (highs[last] - pivot);
   
   return {
     pivot: Math.round(pivot * 100) / 100,
