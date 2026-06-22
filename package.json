@@ -8,7 +8,12 @@
     "dev": "node server.js",
     "test": "node --check server.js"
   },
-  "keywords": ["stock", "dashboard", "finance", "taiwan"],
+  "keywords": [
+    "stock",
+    "dashboard",
+    "finance",
+    "taiwan"
+  ],
   "author": "Rockychen530",
   "license": "MIT",
   "dependencies": {
@@ -17,6 +22,7 @@
     "cheerio": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "d3": "^7.9.0",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
   }

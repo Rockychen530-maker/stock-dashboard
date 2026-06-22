@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
@@ -6,7 +7,7 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
-const PASSWORD = 'rockygogogo';
+const PASSWORD = process.env.DASHBOARD_PASSWORD || 'rockygogogo';
 
 // 簡單的 session 管理（記憶體）
 const sessions = new Set();
@@ -692,6 +693,16 @@ app.post('/api/alert', express.json(), (req, res) => {
 app.get('/api/alert/:symbol', (req, res) => {
   const config = alertConfig[req.params.symbol];
   res.json(config || { enabled: false });
+});
+
+// ============ 健康檢查 ============
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    version: '3.0.0'
+  });
 });
 
 // ============ 啟動 ============
