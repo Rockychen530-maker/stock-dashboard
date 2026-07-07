@@ -20,11 +20,11 @@ const cache = {
 };
 const CACHE_TTL = 60000; // 1分鐘快取
 
-// 用戶資訊（來自對話元數據）
+// 用戶資訊（可透過環境變數覆寫）
 const USER_INFO = {
-  name: '台中小陳',
-  username: 'rocky_9636',
-  chatId: 'user:1214915131692159017'
+  name: process.env.USER_NAME || 'User',
+  username: process.env.USER_USERNAME || '',
+  chatId: process.env.USER_CHAT_ID || ''
 };
 
 // 密碼驗證 middleware
