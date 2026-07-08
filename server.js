@@ -137,10 +137,16 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-
 // 所有請求都需要驗證密碼（除了 API）
 app.use(authMiddleware);
+
+// 看盤系統儀表板（經過 auth 驗證）
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
+});
+
+// 靜態資源（CSS、圖片等）
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // 股票代碼映射
 const STOCKS = {
