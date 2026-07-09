@@ -10,7 +10,16 @@ const PORT = 3000;
 const PASSWORD = process.env.DASHBOARD_PASSWORD || 'rockygogogo';
 
 // 簡單的 session 管理（記憶體）
-const sessions = new Set();
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24小時
+const sessions = new Map(); // sessionId -> createdAt
+
+// 每小時清理過期 session
+setInterval(() => {
+  const now = Date.now();
+  for (const [sid, createdAt] of sessions) {
+    if (now - createdAt > SESSION_TTL) sessions.delete(sid);
+  }
+}, 60 * 60 * 1000);
 
 // 快取機制
 const cache = {
@@ -34,10 +43,13 @@ function authMiddleware(req, res, next) {
     return next();
   }
   
-  // 如果有有效 session cookie，直接通過
+  // 如果有有效 session cookie，直接通過（檢查是否未過期）
   const sessionId = req.cookies?.session_id;
   if (sessionId && sessions.has(sessionId)) {
-    return next();
+    if (Date.now() - sessions.get(sessionId) <= SESSION_TTL) {
+      return next();
+    }
+    sessions.delete(sessionId);
   }
   
   // 檢查密碼
@@ -45,7 +57,7 @@ function authMiddleware(req, res, next) {
   if (inputPassword === PASSWORD) {
     // 產生新 session
     const sessionId = crypto.randomBytes(32).toString('hex');
-    sessions.add(sessionId);
+    sessions.set(sessionId, Date.now());
     res.cookie('session_id', sessionId, {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24小時
